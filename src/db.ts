@@ -1,4 +1,5 @@
 import * as client from 'knex';
+import Message from './message';
 
 const knex: client = client({
   client: 'sqlite3',
@@ -59,22 +60,33 @@ const getUpdateId = async () => {
   }
 };
 
-const saveMessage = async (message: any) => {
+const saveMessage = async (message: Message) => {
   await knex('log').insert({
-    update_id: message.update_id,
-    message_id: message.message.message_id,
-    from_id: message.message.from.id,
-    chat_id: message.message.chat.id,
-    date: message.message.date,
-    text: JSON.stringify(message.message.text),
-    sticker: JSON.stringify(message.message.sticker),
+    update_id: message.getUpdateId(),
+    message_id: message.getMessageId(),
+    from_id: message.getFromId(),
+    chat_id: message.getChatId(),
+    date: message.getDate(),
+    text: JSON.stringify(message.getMessage().text),
+    sticker: JSON.stringify(message.getMessage().sticker),
   });
 };
 
-const deleteMessage = async (message: any) => {
+const deleteMessage = async (message: Message) => {
   await knex('log').update({
     is_deleted: 1
-  }).where({ message_id: message.message.message_id });
+  }).where({ message_id: message.getMessageId() });
+};
+
+const getLastSticker = async (message: Message) => {
+  const lastSticker = await knex('log')
+  .whereBetween('date', [0, message.getDate() - 1])
+  .andWhere({ is_deleted: 0 })
+  .whereNotNull('sticker')
+  .orderBy('date', 'desc')
+  .limit(1)
+  .then(s => s[0]);
+  return lastSticker;
 };
 
 export {
@@ -82,4 +94,5 @@ export {
   getUpdateId,
   saveMessage,
   deleteMessage,
+  getLastSticker,
 }

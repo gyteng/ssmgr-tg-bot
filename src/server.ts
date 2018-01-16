@@ -1,10 +1,8 @@
 import { token } from './config';
-
 import * as db from './db';
 import { get, post } from 'request';
-// const rp = require('request-promise');
 const url = `https://api.telegram.org/bot${ token }/`;
-
+import Message from './message';
 
 process.on('unhandledRejection', (reason, p) => {
   console.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
@@ -15,12 +13,13 @@ process.on('uncaughtException', (err) => {
   console.error(err);
 });
 
-const deleteMessage = (message: any) => {
+const deleteMessage = async (message: Message) => {
+  await db.deleteMessage(message);
   return new Promise((resolve, reject) => {
     post(url + 'deleteMessage', {
       form: {
-        chat_id: message.message.chat.id,
-        message_id: message.message.message_id,
+        chat_id: message.getChatId(),
+        message_id: message.getMessageId(),
       }
     }, (err, data, body) => {
       if(err) {
@@ -53,9 +52,16 @@ const getMessage = async () => {
   if(resultObj.ok && resultObj.result.length) {
     resultObj.result.forEach(async (message: any) => {
       console.log(message);
-      await db.saveMessage(message);
-      if(message.message.sticker) {
-        await deleteMessage(message);
+      if(!message.message) { return; }
+      const msg = new Message(message);
+      await db.saveMessage(msg);
+      if(msg.getSticker()) {
+        const lastSticker = await db.getLastSticker(msg);
+        if(lastSticker) {
+          if(msg.getDate() - lastSticker.date <= 30 || msg.getFromId() === lastSticker.from_id) {
+            await deleteMessage(msg);
+          }
+        }
       }
     });
     if(resultObj.result.length) {
@@ -63,8 +69,7 @@ const getMessage = async () => {
     }
   }
 };
-
-const pull = (): any => {
+const pull = (): Promise<any> => {
   return getMessage()
   .then(() => {
     return pull();
