@@ -1,0 +1,1 @@
+export const token: string = '476574538:xxxxxxxxxxxxxx';

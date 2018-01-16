@@ -1,4 +1,6 @@
-const knex = require('knex')({
+import * as client from 'knex';
+
+const knex: client = client({
   client: 'sqlite3',
   connection: {
     filename: './data.sqlite',
@@ -7,26 +9,25 @@ const knex = require('knex')({
 });
 
 const createTable = async () => {
-  return knex.schema.createTableIfNotExists('setting', function(table) {
+  await knex.schema.createTableIfNotExists('setting', function(table) {
     table.string('key');
     table.string('value');
-  }).then(() => {
-    return knex.schema.createTableIfNotExists('log', function(table) {
-      table.integer('is_deleted').defaultTo(0);
-      table.integer('update_id').primary();
-      table.integer('message_id');
-      table.integer('from_id');
-      table.integer('chat_id');
-      table.bigInteger('date');
-      table.string('text', 16384);
-      table.string('sticker', 16384);
-    });
+  });
+  await knex.schema.createTableIfNotExists('log', function(table) {
+    table.integer('is_deleted').defaultTo(0);
+    table.integer('update_id').primary();
+    table.integer('message_id');
+    table.integer('from_id');
+    table.integer('chat_id');
+    table.bigInteger('date');
+    table.string('text', 16384);
+    table.string('sticker', 16384);
   });
 };
 
 createTable();
 
-const setUpdateId = async (id) => {
+const setUpdateId = async (id: number) => {
   try {
     const result = await knex('setting').select(['value']).where({key: 'updateId'});
     if(result.length === 0) {
@@ -58,7 +59,7 @@ const getUpdateId = async () => {
   }
 };
 
-const saveMessage = async (message) => {
+const saveMessage = async (message: any) => {
   await knex('log').insert({
     update_id: message.update_id,
     message_id: message.message.message_id,
@@ -70,13 +71,15 @@ const saveMessage = async (message) => {
   });
 };
 
-const deleteMessage = async (message) => {
+const deleteMessage = async (message: any) => {
   await knex('log').update({
     is_deleted: 1
   }).where({ message_id: message.message.message_id });
 };
 
-exports.setUpdateId = setUpdateId;
-exports.getUpdateId = getUpdateId;
-exports.saveMessage = saveMessage;
-exports.deleteMessage = deleteMessage;
+export {
+  setUpdateId,
+  getUpdateId,
+  saveMessage,
+  deleteMessage,
+}
